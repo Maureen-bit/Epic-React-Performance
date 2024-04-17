@@ -3,8 +3,8 @@
 
 import * as React from 'react'
 import {useCombobox} from '../use-combobox'
-import {getItems} from '../filter-cities'
-import {useForceRerender} from '../utils'
+import {getItems} from '../workerized-filter-cities'
+import {useAsync, useForceRerender} from '../utils'
 
 function Menu({
   items,
@@ -60,8 +60,33 @@ function App() {
   const forceRerender = useForceRerender()
   const [inputValue, setInputValue] = React.useState('')
 
-  // 🐨 wrap getItems in a call to `React.useMemo`
-  const allItems = getItems(inputValue)
+  /** Based on the review in the performance tab, I realized that the getItem function is being called 
+   * on every render, this is a big issue because it's taking a lot of time to run and impacts the app's 
+   * performance. This function only should be called when the filter changes. The main issue is that 
+   * inside this function there is another one called matchSorter which has to process a large file with 
+   * a lot of cities when the user wants to filter the list. This is a heavy process, that's why we need 
+   * to review it.
+   * 
+   Once we implemented this optimization with the useMemo hook, we noticed that the getItem function is 
+   gonna be called only when inputValue changes which is the filter in this case. In the performance tab, 
+   we can see that the red point related to the getItems function disappeared. or in some cases, the task 
+   is still red but it's using less time to run. Before the optimization was taking almost 400ms and now 
+   it's taking only almost 60ms. 
+
+   const allItems = React.useMemo(() => getItems(inputValue), [inputValue]);
+   */
+
+
+   /** Web workers: it helps us to take some JavaScript that's expensive to run and put it on a separate
+    * thread, so the main thread is freed up to display things to the user more rapidly. It's absolutely 
+    * something worth trying if we have some really intense calculations that the browser needs to crunch 
+    * through, and we want to free the main thread to be able to do some work while you're doing that 
+    * intense calculation. */
+  const { data: allItems, run } = useAsync({data: [], status: 'pending'});
+  React.useEffect(() => {
+    run(getItems(inputValue))
+  }, [inputValue, run] )
+
   const items = allItems.slice(0, 100)
 
   const {

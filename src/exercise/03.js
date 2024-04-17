@@ -15,57 +15,107 @@ function Menu({
 }) {
   return (
     <ul {...getMenuProps()}>
-      {items.map((item, index) => (
-        <ListItem
+      {items.map((item, index) => {
+
+      /** Extra credit - 2 */
+
+      /** We move isSelected and isHighlighted calculations up higher in the tree (Menu). These calculations
+       * were performing inside the ListItem component. In this way, we're only passing primitive values 
+       * from the Parent(Menu) to Children(LisItem). When these primitive values(isHighlighted and isSelected)
+       * changed, will trigger a DOM update. That way, we don't worry about breaking memoization or having 
+       * to create a custom comparator.  In this option, the default behavior for React.memo is also going 
+       * to give us an awesome behavior for the re-rendering of these list items */
+
+        const isSelected = selectedItem?.id === item.id
+        const isHighlighted = highlightedIndex === index
+        
+        return (
+          <ListItem
           key={item.id}
           getItemProps={getItemProps}
           item={item}
           index={index}
-          selectedItem={selectedItem}
-          highlightedIndex={highlightedIndex}
+          isSelected={isSelected}
+          isHighlighted={isHighlighted}
         >
           {item.name}
         </ListItem>
-      ))}
+      )})}
     </ul>
   )
 }
 // 🐨 Memoize the Menu here using React.memo
+Menu = React.memo(Menu);
+
 
 function ListItem({
   getItemProps,
   item,
   index,
-  selectedItem,
-  highlightedIndex,
+  isSelected,
+  isHighlighted,
   ...props
 }) {
-  const isSelected = selectedItem?.id === item.id
-  const isHighlighted = highlightedIndex === index
+
   return (
     <li
-      {...getItemProps({
+      {
+        ...getItemProps({
         index,
         item,
         style: {
           fontWeight: isSelected ? 'bold' : 'normal',
           backgroundColor: isHighlighted ? 'lightgray' : 'inherit',
         },
-        ...props,
-      })}
+        ...props})
+      }
     />
   )
 }
 // 🐨 Memoize the ListItem here using React.memo
+ListItem = React.memo(ListItem /*, arePropsEqual */ );
+
+
+/** Extra credit 1 - We implement this comparision function because we only really needed to 
+ * re-render the listItem that was highlighted and then unhighlight it. Therefore, it helps us to avoid 
+ * re-render all the list items when the highlightedIndex change
+
+  function arePropsEqual(oldProps, newProps) {
+  /** First, we need to ensure that we are going to cover the cases where we don't need to re -render the item
+   * If one of those props change, we need to trigger a re-render
+   
+  if (oldProps.getItemProps !== newProps.getItemProps) return false;
+  if (oldProps.item !== newProps.item) return false;
+  if (oldProps.index !== newProps.index) return false;
+  if (oldProps.selectedItem !== newProps.selectedItem) return false;
+
+  /** Ensure that we're gonna compare two different highlighted items
+  if (oldProps.highlightedIndex !== newProps.highlightedIndex) {
+    /** Now, we need to compare what was the last highlighted item with the new highlighted item 
+    /** Was it previously highlighted, and now it still is previously highlighted? Then no, I don't need 
+     * to re-render. Or was it not previously highlighted, and now it's still not previously highlighted? 
+     * Then no, I don't need to re-render. If it was previously highlighted, and now it's not, then yes, 
+     * I do need to re-render. 
+  
+    const wasPreviousHighlightedItem = oldProps.index === oldProps.highlightedIndex;
+    const isNewHighlightedItem = newProps.index === newProps.highlightedIndex;
+    /** If this is the case, I don't need to re-render 
+    return (wasPreviousHighlightedItem === isNewHighlightedItem);
+  }
+
+  /** Otherwise, we'll go ahead and return true, indicating that no, I guess we do not need to re-render.
+  return true;
+} */
 
 function App() {
   const forceRerender = useForceRerender()
   const [inputValue, setInputValue] = React.useState('')
 
-  const {data: allItems, run} = useAsync({data: [], status: 'pending'})
+  const { data: allItems, run } = useAsync({data: [], status: 'pending'});
   React.useEffect(() => {
     run(getItems(inputValue))
-  }, [inputValue, run])
+  }, [inputValue, run] )
+
   const items = allItems.slice(0, 100)
 
   const {
